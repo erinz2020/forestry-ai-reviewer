@@ -1,0 +1,20 @@
+# Compiled
+backend/target/
+frontend/dist/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Uploads
+uploads/
+
+# H2 data
+backend/data/
+
+# Environment
+.env

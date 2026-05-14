@@ -1,0 +1,48 @@
+server:
+  port: 8081
+  error:
+    include-message: always
+    include-stacktrace: always
+
+spring:
+  datasource:
+    # H2 for local dev — switch to PostgreSQL when available
+    url: jdbc:h2:file:./data/forestry-ai-reviewer
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  flyway:
+    enabled: false  # Enable when using PostgreSQL
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+# --- PostgreSQL config (uncomment when ready) ---
+# spring:
+#   datasource:
+#     url: jdbc:postgresql://localhost:5432/forestry_ai_reviewer
+#     username: forestry
+#     password: forestry
+#     driver-class-name: org.postgresql.Driver
+#   jpa:
+#     hibernate:
+#       ddl-auto: validate
+#   flyway:
+#     enabled: true
+#     locations: classpath:db/migration
+
+upload:
+  dir: ./uploads
+
+logging:
+  level:
+    com.forestry.aireviewer: DEBUG
