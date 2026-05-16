@@ -32,6 +32,29 @@ header h1 {
   margin-top: 4px;
 }
 
+.app-nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.app-nav button {
+  border: 1px solid #d2d2d7;
+  background: #fff;
+  color: #1d1d1f;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.app-nav .nav-active {
+  background: #1d1d1f;
+  border-color: #1d1d1f;
+  color: #fff;
+}
+
 /* Upload */
 
 .upload-area {
@@ -154,6 +177,10 @@ header h1 {
   margin-bottom: 24px;
 }
 
+.section-header {
+  margin-bottom: 16px;
+}
+
 .detail-header h2 {
   font-size: 20px;
   font-weight: 600;
@@ -189,6 +216,115 @@ header h1 {
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   font-size: 13px;
+}
+
+.review-cases-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+}
+
+.review-cases-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6e6e73;
+  border-bottom: 1px solid #e5e5ea;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.review-cases-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f2f2f7;
+  vertical-align: top;
+  max-width: 180px;
+}
+
+.review-cases-table tbody tr:not(.expanded-row) {
+  cursor: pointer;
+}
+
+.review-cases-table tbody tr:hover {
+  background: #f9f9fb;
+}
+
+.pair-upload {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #424245;
+}
+
+.form-grid input {
+  min-height: 38px;
+  border: 1px solid #d2d2d7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  font-weight: 400;
+  background: #fff;
+}
+
+.source-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.source-text_diff { background: #e3f2fd; color: #1565c0; }
+.source-review_comment { background: #f1f8e9; color: #33691e; }
+.source-both { background: #fff3e0; color: #e65100; }
+
+.expanded-row td {
+  max-width: none;
+  background: #fbfbfd;
+}
+
+.review-case-detail {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.review-case-detail h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6e6e73;
+  margin-bottom: 6px;
+}
+
+.review-case-detail p {
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: #1d1d1f;
 }
 
 .findings-table th {
@@ -263,4 +399,22 @@ header h1 {
   color: #c62828;
   font-size: 14px;
   margin-top: 8px;
+}
+
+.success {
+  color: #2e7d32;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+@media (max-width: 820px) {
+  .form-grid,
+  .review-case-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .review-cases-table {
+    display: block;
+    overflow-x: auto;
+  }
 }

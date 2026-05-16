@@ -1,0 +1,62 @@
+package com.forestry.aireviewer.controller;
+
+import com.forestry.aireviewer.service.HistoricalReviewPairService;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(ReviewCaseController.class)
+class ReviewCaseControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private HistoricalReviewPairService historicalReviewPairService;
+
+    @Test
+    @DisplayName("upload pair requires beforeFile")
+    void uploadPair_missingBeforeFile_returnsBadRequest() throws Exception {
+        MockMultipartFile after = new MockMultipartFile("afterFile", "reviewed.txt", "text/plain", "body".getBytes());
+
+        mockMvc.perform(multipart("/api/review-cases/upload-pair").file(after))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("upload pair requires afterFile")
+    void uploadPair_missingAfterFile_returnsBadRequest() throws Exception {
+        MockMultipartFile before = new MockMultipartFile("beforeFile", "draft.txt", "text/plain", "body".getBytes());
+
+        mockMvc.perform(multipart("/api/review-cases/upload-pair").file(before))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("upload pair passes multipart fields to service")
+    void uploadPair_validRequest_returnsOk() throws Exception {
+        MockMultipartFile before = new MockMultipartFile("beforeFile", "draft.txt", "text/plain", "before".getBytes());
+        MockMultipartFile after = new MockMultipartFile("afterFile", "reviewed.txt", "text/plain", "after".getBytes());
+        when(historicalReviewPairService.ingestPair(any(), any(), eq("Wetland case"), eq("EIA")))
+                .thenReturn(List.of());
+
+        mockMvc.perform(multipart("/api/review-cases/upload-pair")
+                        .file(before)
+                        .file(after)
+                        .param("title", "Wetland case")
+                        .param("documentType", "EIA"))
+                .andExpect(status().isOk());
+    }
+}

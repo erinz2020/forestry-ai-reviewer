@@ -39,6 +39,15 @@ public class Finding {
     @Column(columnDefinition = "TEXT")
     private String evidence;
 
+    @Column
+    private Double confidence;
+
+    @Column(columnDefinition = "TEXT")
+    private String sourceReferences;
+
+    @Column
+    private Integer chunkIndex;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FindingStatus status = FindingStatus.PENDING;
@@ -74,6 +83,15 @@ public class Finding {
 
     public String getEvidence() { return evidence; }
     public void setEvidence(String evidence) { this.evidence = evidence; }
+
+    public Double getConfidence() { return confidence; }
+    public void setConfidence(Double confidence) { this.confidence = confidence; }
+
+    public String getSourceReferences() { return sourceReferences; }
+    public void setSourceReferences(String sourceReferences) { this.sourceReferences = sourceReferences; }
+
+    public Integer getChunkIndex() { return chunkIndex; }
+    public void setChunkIndex(Integer chunkIndex) { this.chunkIndex = chunkIndex; }
 
     public FindingStatus getStatus() { return status; }
     public void setStatus(FindingStatus status) { this.status = status; }

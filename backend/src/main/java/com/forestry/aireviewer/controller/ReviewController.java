@@ -2,7 +2,7 @@ package com.forestry.aireviewer.controller;
 
 import com.forestry.aireviewer.model.Finding;
 import com.forestry.aireviewer.model.FindingStatus;
-import com.forestry.aireviewer.service.ReviewService;
+import com.forestry.aireviewer.service.ReviewOrchestrator;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,21 +14,21 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class ReviewController {
 
-    private final ReviewService reviewService;
+    private final ReviewOrchestrator reviewOrchestrator;
 
-    public ReviewController(ReviewService reviewService) {
-        this.reviewService = reviewService;
+    public ReviewController(ReviewOrchestrator reviewOrchestrator) {
+        this.reviewOrchestrator = reviewOrchestrator;
     }
 
     @PostMapping("/documents/{id}/review")
     public ResponseEntity<List<Finding>> reviewDocument(@PathVariable UUID id) {
-        List<Finding> findings = reviewService.reviewDocument(id);
+        List<Finding> findings = reviewOrchestrator.reviewDocument(id);
         return ResponseEntity.ok(findings);
     }
 
     @GetMapping("/documents/{id}/findings")
     public ResponseEntity<List<Finding>> getFindings(@PathVariable UUID id) {
-        List<Finding> findings = reviewService.getFindings(id);
+        List<Finding> findings = reviewOrchestrator.getFindings(id);
         return ResponseEntity.ok(findings);
     }
 
@@ -36,7 +36,7 @@ public class ReviewController {
     public ResponseEntity<Finding> updateStatus(@PathVariable UUID id,
                                                 @RequestBody Map<String, String> body) {
         FindingStatus status = FindingStatus.valueOf(body.get("status"));
-        Finding updated = reviewService.updateStatus(id, status);
+        Finding updated = reviewOrchestrator.updateStatus(id, status);
         return ResponseEntity.ok(updated);
     }
 }

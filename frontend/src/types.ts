@@ -31,3 +31,24 @@ export interface Finding {
   status: FindingStatus;
   createdAt: string;
 }
+
+export type ReviewCaseSourceType = 'TEXT_DIFF' | 'REVIEW_COMMENT' | 'BOTH';
+
+export interface ReviewCase {
+  id: string;
+  title: string | null;
+  documentType: string | null;
+  sectionType: string | null;
+  originalText: string | null;
+  reviewedText: string | null;
+  reviewerComment: string | null;
+  detectedChange: string | null;
+  sourceType: ReviewCaseSourceType;
+  sourceDraftFileName: string;
+  sourceReviewedFileName: string;
+  draftChunkIndex: number | null;
+  reviewedChunkIndex: number | null;
+  commentAuthor: string | null;
+  commentLocation: string | null;
+  createdAt: string;
+}

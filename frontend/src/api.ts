@@ -1,4 +1,4 @@
-import type { Document, Finding, FindingStatus } from './types';
+import type { Document, Finding, FindingStatus, ReviewCase } from './types';
 
 const BASE = '/api';
 
@@ -41,5 +41,34 @@ export async function updateFindingStatus(findingId: string, status: FindingStat
     body: JSON.stringify({ status }),
   });
   if (!res.ok) throw new Error(`Status update failed: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadReviewCasePair(params: {
+  beforeFile: File;
+  afterFile: File;
+  title?: string;
+  documentType?: string;
+}): Promise<ReviewCase[]> {
+  const form = new FormData();
+  form.append('beforeFile', params.beforeFile);
+  form.append('afterFile', params.afterFile);
+  if (params.title) form.append('title', params.title);
+  if (params.documentType) form.append('documentType', params.documentType);
+
+  const res = await fetch(`${BASE}/review-cases/upload-pair`, { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`Historical review pair upload failed: ${res.status}`);
+  return res.json();
+}
+
+export async function listReviewCases(): Promise<ReviewCase[]> {
+  const res = await fetch(`${BASE}/review-cases`);
+  if (!res.ok) throw new Error(`Review cases list failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getReviewCase(id: string): Promise<ReviewCase> {
+  const res = await fetch(`${BASE}/review-cases/${id}`);
+  if (!res.ok) throw new Error(`Review case get failed: ${res.status}`);
   return res.json();
 }

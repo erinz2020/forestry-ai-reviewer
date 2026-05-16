@@ -6,8 +6,12 @@ server:
 
 spring:
   datasource:
-    # H2 for local dev — switch to PostgreSQL when available
-    url: jdbc:h2:file:./data/forestry-ai-reviewer
+    # H2 in file mode for local dev. Data persists across backend restarts.
+    # File location: backend/data/forestry-reviewer.mv.db (gitignored).
+    # To wipe local data: `rm -rf backend/data` and restart.
+    # Tests use an in-memory H2 instance (see src/test/resources/application.yml).
+    # PostgreSQL config is below, commented out — switch when ready.
+    url: jdbc:h2:file:./data/forestry-reviewer
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -42,6 +46,26 @@ spring:
 
 upload:
   dir: ./uploads
+
+# Review provider selection. Supported values: mock, llm
+# - mock: deterministic local fixture (default, no external API calls)
+# - llm:  real LLM-backed provider (requires ANTHROPIC_API_KEY or OPENAI_API_KEY)
+app:
+  review:
+    provider: mock
+  llm:
+    # "anthropic" or "openai"
+    provider: anthropic
+    # Provider-specific model identifier
+    model: claude-sonnet-4-6
+    # Read timeout for the LLM HTTP call
+    timeout-seconds: 60
+    # Cap on tokens returned by the model
+    max-output-tokens: 4096
+    # API keys are sourced from environment variables:
+    #   ANTHROPIC_API_KEY   when llm.provider=anthropic
+    #   OPENAI_API_KEY      when llm.provider=openai
+    # Never commit keys to source control.
 
 logging:
   level:

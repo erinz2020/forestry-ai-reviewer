@@ -12,3 +12,7 @@ spring:
 
 upload:
   dir: ./test-uploads
+
+app:
+  review:
+    provider: mock

@@ -1,7 +1,9 @@
 package com.forestry.aireviewer.service;
 
 import com.forestry.aireviewer.model.Document;
+import com.forestry.aireviewer.model.DocumentChunk;
 import com.forestry.aireviewer.model.DocumentStatus;
+import com.forestry.aireviewer.repository.DocumentChunkRepository;
 import com.forestry.aireviewer.repository.DocumentRepository;
 import org.apache.tika.Tika;
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +27,8 @@ public class DocumentService {
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private final DocumentRepository documentRepository;
+    private final DocumentChunkRepository chunkRepository;
+    private final DocumentChunker chunker;
     private final Tika tika = new Tika();
 
     @Value("${upload.dir:./uploads}")
@@ -31,8 +36,12 @@ public class DocumentService {
 
     private Path uploadPath;
 
-    public DocumentService(DocumentRepository documentRepository) {
+    public DocumentService(DocumentRepository documentRepository,
+                           DocumentChunkRepository chunkRepository,
+                           DocumentChunker chunker) {
         this.documentRepository = documentRepository;
+        this.chunkRepository = chunkRepository;
+        this.chunker = chunker;
     }
 
     @PostConstruct
@@ -65,7 +74,12 @@ public class DocumentService {
         doc = documentRepository.save(doc);
 
         extractText(doc);
-        return documentRepository.save(doc);
+        doc = documentRepository.save(doc);
+
+        if (doc.getStatus() == DocumentStatus.READY) {
+            saveChunks(doc);
+        }
+        return doc;
     }
 
     private void extractText(Document doc) {
@@ -79,6 +93,21 @@ public class DocumentService {
             doc.setStatus(DocumentStatus.FAILED);
             log.error("Text extraction failed for '{}': {}", doc.getFileName(), e.getMessage());
         }
+    }
+
+    private void saveChunks(Document doc) {
+        List<DocumentChunker.ChunkData> data = chunker.chunk(doc.getExtractedText());
+        if (data.isEmpty()) {
+            log.warn("Document {} produced no chunks despite extracted text", doc.getId());
+            return;
+        }
+        List<DocumentChunk> chunks = new ArrayList<>(data.size());
+        for (DocumentChunker.ChunkData d : data) {
+            chunks.add(new DocumentChunk(doc.getId(), d.chunkIndex(), d.content(), d.startOffset(), d.endOffset()));
+        }
+        chunkRepository.saveAll(chunks);
+        log.info("Saved {} chunks for document '{}' ({} total characters)",
+                chunks.size(), doc.getFileName(), doc.getExtractedText().length());
     }
 
     public List<Document> listAll() {
