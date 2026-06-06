@@ -30,12 +30,17 @@ class HistoricalReviewPairServiceTest {
     @Mock
     private CommentExtractionDispatcher commentExtractor;
 
+    @Mock
+    private DocxRevisionExtractor revisionExtractor;
+
     private HistoricalReviewPairService service;
 
     @BeforeEach
     void setUp() {
-        service = new HistoricalReviewPairService(reviewCaseRepository, new DocumentChunker(), commentExtractor);
+        service = new HistoricalReviewPairService(
+                reviewCaseRepository, new DocumentChunker(), commentExtractor, revisionExtractor);
         lenient().when(reviewCaseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(revisionExtractor.extract(any())).thenReturn(List.of());
     }
 
     @Test
@@ -180,6 +185,39 @@ class HistoricalReviewPairServiceTest {
         List<ReviewCase> cases = service.ingestAnnotated(annotated, null, null);
 
         assertThat(cases).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ingestAnnotated stores tracked revisions as TRACKED_REVISION cases")
+    void ingestAnnotated_trackedRevisions_storedAsTrackedRevisionCases() {
+        MockMultipartFile annotated = textFile("reviewed.docx", "Section 1\n\nBody.");
+        when(commentExtractor.extract(annotated)).thenReturn(List.of());
+        when(revisionExtractor.extract(annotated)).thenReturn(List.of(
+                new RevisionEdit("Alice", "old phrase", "new phrase", "Paragraph 3"),
+                new RevisionEdit("Bob", "", "added context", "Paragraph 5"),
+                new RevisionEdit("Bob", "removed words", "", "Paragraph 7")));
+
+        List<ReviewCase> cases = service.ingestAnnotated(annotated, "Wetland EIA", "EIA");
+
+        assertThat(cases).hasSize(3);
+        assertThat(cases).allMatch(c -> c.getSourceType() == ReviewCaseSourceType.TRACKED_REVISION);
+
+        ReviewCase replace = cases.get(0);
+        assertThat(replace.getCommentAuthor()).isEqualTo("Alice");
+        assertThat(replace.getCommentLocation()).isEqualTo("Paragraph 3");
+        assertThat(replace.getOriginalText()).isEqualTo("old phrase");
+        assertThat(replace.getReviewedText()).isEqualTo("new phrase");
+        assertThat(replace.getDetectedChange()).contains("Replace");
+
+        ReviewCase insert = cases.get(1);
+        assertThat(insert.getOriginalText()).isNull();
+        assertThat(insert.getReviewedText()).isEqualTo("added context");
+        assertThat(insert.getDetectedChange()).contains("Insert");
+
+        ReviewCase delete = cases.get(2);
+        assertThat(delete.getOriginalText()).isEqualTo("removed words");
+        assertThat(delete.getReviewedText()).isNull();
+        assertThat(delete.getDetectedChange()).contains("Delete");
     }
 
     @Test

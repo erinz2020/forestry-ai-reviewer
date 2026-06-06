@@ -32,7 +32,7 @@ export interface Finding {
   createdAt: string;
 }
 
-export type ReviewCaseSourceType = 'TEXT_DIFF' | 'REVIEW_COMMENT' | 'BOTH';
+export type ReviewCaseSourceType = 'TEXT_DIFF' | 'REVIEW_COMMENT' | 'BOTH' | 'TRACKED_REVISION';
 
 export interface ReviewCase {
   id: string;
@@ -44,7 +44,7 @@ export interface ReviewCase {
   reviewerComment: string | null;
   detectedChange: string | null;
   sourceType: ReviewCaseSourceType;
-  sourceDraftFileName: string;
+  sourceDraftFileName: string | null;
   sourceReviewedFileName: string;
   draftChunkIndex: number | null;
   reviewedChunkIndex: number | null;

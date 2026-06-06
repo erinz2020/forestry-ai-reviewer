@@ -27,14 +27,17 @@ public class HistoricalReviewPairService {
     private final ReviewCaseRepository reviewCaseRepository;
     private final DocumentChunker chunker;
     private final CommentExtractionDispatcher commentExtractor;
+    private final DocxRevisionExtractor revisionExtractor;
     private final Tika tika = new Tika();
 
     public HistoricalReviewPairService(ReviewCaseRepository reviewCaseRepository,
                                        DocumentChunker chunker,
-                                       CommentExtractionDispatcher commentExtractor) {
+                                       CommentExtractionDispatcher commentExtractor,
+                                       DocxRevisionExtractor revisionExtractor) {
         this.reviewCaseRepository = reviewCaseRepository;
         this.chunker = chunker;
         this.commentExtractor = commentExtractor;
+        this.revisionExtractor = revisionExtractor;
     }
 
     public List<ReviewCase> ingestPair(MultipartFile beforeFile,
@@ -112,9 +115,44 @@ public class HistoricalReviewPairService {
             cases.add(reviewCase);
         }
 
+        for (RevisionEdit edit : revisionExtractor.extract(annotatedFile)) {
+            cases.add(revisionCase(edit, annotatedFile, title, documentType));
+        }
+
         List<ReviewCase> saved = reviewCaseRepository.saveAll(cases);
         log.info("Created {} annotated review cases from '{}'", saved.size(), annotatedFile.getOriginalFilename());
         return saved;
+    }
+
+    private ReviewCase revisionCase(RevisionEdit edit,
+                                    MultipartFile annotatedFile,
+                                    String title,
+                                    String documentType) {
+        ReviewCase reviewCase = new ReviewCase();
+        reviewCase.setTitle(blankToNull(title));
+        reviewCase.setDocumentType(blankToNull(documentType));
+        reviewCase.setSourceDraftFileName(null);
+        reviewCase.setSourceReviewedFileName(safeName(annotatedFile));
+        reviewCase.setSourceType(ReviewCaseSourceType.TRACKED_REVISION);
+        reviewCase.setCommentAuthor(edit.author());
+        reviewCase.setCommentLocation(edit.location());
+        if (!edit.originalText().isEmpty()) {
+            reviewCase.setOriginalText(truncate(edit.originalText(), PREVIEW_LIMIT));
+        }
+        if (!edit.insertedText().isEmpty()) {
+            reviewCase.setReviewedText(truncate(edit.insertedText(), PREVIEW_LIMIT));
+        }
+        reviewCase.setDetectedChange(describeRevision(edit));
+        return reviewCase;
+    }
+
+    private String describeRevision(RevisionEdit edit) {
+        return switch (edit.kind()) {
+            case REPLACE -> "Replace: '" + truncate(edit.originalText(), 120)
+                    + "' → '" + truncate(edit.insertedText(), 120) + "'";
+            case INSERT -> "Insert: '" + truncate(edit.insertedText(), 120) + "'";
+            case DELETE -> "Delete: '" + truncate(edit.originalText(), 120) + "'";
+        };
     }
 
     public List<ReviewCase> listAll() {

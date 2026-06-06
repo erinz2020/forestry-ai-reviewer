@@ -35,7 +35,7 @@ public class ReviewCase {
     private String detectedChange;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(32)")
     private ReviewCaseSourceType sourceType;
 
     @Column

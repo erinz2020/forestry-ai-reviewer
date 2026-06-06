@@ -1,7 +1,9 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ReviewCase } from '../types';
-import { listReviewCases, uploadReviewCasePair } from '../api';
+import { listReviewCases, uploadReviewCaseAnnotated, uploadReviewCasePair } from '../api';
+
+type UploadMode = 'pair' | 'annotated';
 
 function preview(value: string | null, limit = 120) {
   if (!value) return '—';
@@ -13,14 +15,17 @@ function sourceTypeLabel(sourceType: ReviewCase['sourceType']) {
     TEXT_DIFF: 'Text diff',
     REVIEW_COMMENT: 'Review comment',
     BOTH: 'Both',
+    TRACKED_REVISION: 'Tracked revision',
   };
   return labels[sourceType];
 }
 
 export default function HistoricalReviewCases() {
   const [cases, setCases] = useState<ReviewCase[]>([]);
+  const [mode, setMode] = useState<UploadMode>('pair');
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
+  const [annotatedFile, setAnnotatedFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,28 +39,52 @@ export default function HistoricalReviewCases() {
 
   useEffect(refresh, []);
 
+  function resetForm() {
+    setBeforeFile(null);
+    setAfterFile(null);
+    setAnnotatedFile(null);
+    setTitle('');
+    setDocumentType('');
+  }
+
+  function switchMode(next: UploadMode) {
+    if (next === mode) return;
+    setMode(next);
+    setError(null);
+    setSuccess(null);
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!beforeFile || !afterFile) {
+    setError(null);
+    setSuccess(null);
+
+    if (mode === 'pair' && (!beforeFile || !afterFile)) {
       setError('Select both the original draft and reviewed file.');
+      return;
+    }
+    if (mode === 'annotated' && !annotatedFile) {
+      setError('Select the annotated document to upload.');
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
     try {
-      const created = await uploadReviewCasePair({
-        beforeFile,
-        afterFile,
-        title: title.trim() || undefined,
-        documentType: documentType.trim() || undefined,
-      });
+      const created = mode === 'pair'
+        ? await uploadReviewCasePair({
+            beforeFile: beforeFile!,
+            afterFile: afterFile!,
+            title: title.trim() || undefined,
+            documentType: documentType.trim() || undefined,
+          })
+        : await uploadReviewCaseAnnotated({
+            annotatedFile: annotatedFile!,
+            title: title.trim() || undefined,
+            documentType: documentType.trim() || undefined,
+          });
+
       setSuccess(`Created ${created.length} review case${created.length === 1 ? '' : 's'}.`);
-      setBeforeFile(null);
-      setAfterFile(null);
-      setTitle('');
-      setDocumentType('');
+      resetForm();
       refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -69,26 +98,63 @@ export default function HistoricalReviewCases() {
       <div className="section-header">
         <div>
           <h2>Historical Review Cases</h2>
-          <p className="meta">Upload draft and reviewed versions to extract deterministic review examples.</p>
+          <p className="meta">
+            Capture expert review examples — either by uploading the original draft alongside the
+            reviewed version, or by uploading a single document that contains expert comments.
+          </p>
         </div>
+      </div>
+
+      <div className="mode-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'pair'}
+          className={mode === 'pair' ? 'tab tab-active' : 'tab'}
+          onClick={() => switchMode('pair')}
+        >
+          Upload draft + reviewed pair
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'annotated'}
+          className={mode === 'annotated' ? 'tab tab-active' : 'tab'}
+          onClick={() => switchMode('annotated')}
+        >
+          Upload single annotated document
+        </button>
       </div>
 
       <form className="pair-upload" onSubmit={handleSubmit}>
         <div className="form-grid">
-          <label>
-            <span>Original draft</span>
-            <input
-              type="file"
-              onChange={(e) => setBeforeFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <label>
-            <span>Reviewed version</span>
-            <input
-              type="file"
-              onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
+          {mode === 'pair' ? (
+            <>
+              <label>
+                <span>Original draft</span>
+                <input
+                  type="file"
+                  onChange={(e) => setBeforeFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <label>
+                <span>Reviewed version</span>
+                <input
+                  type="file"
+                  onChange={(e) => setAfterFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </>
+          ) : (
+            <label>
+              <span>Annotated document (.docx with comments, or .pdf with annotations)</span>
+              <input
+                type="file"
+                accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => setAnnotatedFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          )}
           <label>
             <span>Title</span>
             <input
@@ -109,7 +175,11 @@ export default function HistoricalReviewCases() {
           </label>
         </div>
         <button className="btn-review" type="submit" disabled={loading}>
-          {loading ? 'Extracting...' : 'Upload Pair'}
+          {loading
+            ? 'Extracting...'
+            : mode === 'pair'
+              ? 'Upload Pair'
+              : 'Upload Annotated Document'}
         </button>
         {error && <p className="error">{error}</p>}
         {success && <p className="success">{success}</p>}
@@ -129,6 +199,8 @@ export default function HistoricalReviewCases() {
               <th>Original Text</th>
               <th>Reviewed Text</th>
               <th>Reviewer Comment</th>
+              <th>Comment Author</th>
+              <th>Location</th>
               <th>Detected Change</th>
               <th>Created</th>
             </tr>
@@ -136,7 +208,7 @@ export default function HistoricalReviewCases() {
           <tbody>
             {cases.map((reviewCase) => (
               <Fragment key={reviewCase.id}>
-                <tr key={reviewCase.id} onClick={() => setExpandedId(expandedId === reviewCase.id ? null : reviewCase.id)}>
+                <tr onClick={() => setExpandedId(expandedId === reviewCase.id ? null : reviewCase.id)}>
                   <td>{reviewCase.title || '—'}</td>
                   <td>{reviewCase.documentType || '—'}</td>
                   <td>
@@ -144,17 +216,19 @@ export default function HistoricalReviewCases() {
                       {sourceTypeLabel(reviewCase.sourceType)}
                     </span>
                   </td>
-                  <td>{reviewCase.sourceDraftFileName}</td>
+                  <td>{reviewCase.sourceDraftFileName || '—'}</td>
                   <td>{reviewCase.sourceReviewedFileName}</td>
                   <td>{preview(reviewCase.originalText)}</td>
                   <td>{preview(reviewCase.reviewedText)}</td>
                   <td>{preview(reviewCase.reviewerComment)}</td>
+                  <td>{reviewCase.commentAuthor || '—'}</td>
+                  <td>{reviewCase.commentLocation || '—'}</td>
                   <td>{preview(reviewCase.detectedChange)}</td>
                   <td>{new Date(reviewCase.createdAt).toLocaleString()}</td>
                 </tr>
                 {expandedId === reviewCase.id && (
                   <tr className="expanded-row">
-                    <td colSpan={10}>
+                    <td colSpan={12}>
                       <div className="review-case-detail">
                         <div>
                           <h3>Original</h3>
@@ -167,6 +241,13 @@ export default function HistoricalReviewCases() {
                         <div>
                           <h3>Comment</h3>
                           <p>{reviewCase.reviewerComment || '—'}</p>
+                          {(reviewCase.commentAuthor || reviewCase.commentLocation) && (
+                            <p className="meta">
+                              {reviewCase.commentAuthor && <>By {reviewCase.commentAuthor}</>}
+                              {reviewCase.commentAuthor && reviewCase.commentLocation && ' · '}
+                              {reviewCase.commentLocation && <>{reviewCase.commentLocation}</>}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <h3>Change</h3>
