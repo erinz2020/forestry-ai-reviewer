@@ -32,7 +32,12 @@ export interface Finding {
   createdAt: string;
 }
 
-export type ReviewCaseSourceType = 'TEXT_DIFF' | 'REVIEW_COMMENT' | 'BOTH' | 'TRACKED_REVISION';
+export type ReviewCaseSourceType =
+  | 'TEXT_DIFF'
+  | 'REVIEW_COMMENT'
+  | 'BOTH'
+  | 'TRACKED_REVISION'
+  | 'REVIEWER_NOTES';
 
 export interface ReviewCase {
   id: string;

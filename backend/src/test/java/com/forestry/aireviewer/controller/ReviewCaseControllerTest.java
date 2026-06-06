@@ -68,6 +68,29 @@ class ReviewCaseControllerTest {
     }
 
     @Test
+    @DisplayName("upload notes requires notesFile")
+    void uploadNotes_missingFile_returnsBadRequest() throws Exception {
+        mockMvc.perform(multipart("/api/review-cases/upload-notes"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("upload notes passes multipart fields to service")
+    void uploadNotes_validRequest_returnsOk() throws Exception {
+        MockMultipartFile notes = new MockMultipartFile("notesFile", "notes.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "body".getBytes());
+        when(historicalReviewPairService.ingestReviewerNotes(any(), eq("提交版.docx"), eq("Forest plan"), eq("Notes")))
+                .thenReturn(List.of());
+
+        mockMvc.perform(multipart("/api/review-cases/upload-notes")
+                        .file(notes)
+                        .param("relatedFileName", "提交版.docx")
+                        .param("title", "Forest plan")
+                        .param("documentType", "Notes"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @DisplayName("upload annotated passes multipart fields to service")
     void uploadAnnotated_validRequest_returnsOk() throws Exception {
         MockMultipartFile annotated = new MockMultipartFile("annotatedFile", "reviewed.docx",

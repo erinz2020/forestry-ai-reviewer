@@ -76,6 +76,23 @@ export async function uploadReviewCaseAnnotated(params: {
   return res.json();
 }
 
+export async function uploadReviewerNotes(params: {
+  notesFile: File;
+  relatedFileName?: string;
+  title?: string;
+  documentType?: string;
+}): Promise<ReviewCase[]> {
+  const form = new FormData();
+  form.append('notesFile', params.notesFile);
+  if (params.relatedFileName) form.append('relatedFileName', params.relatedFileName);
+  if (params.title) form.append('title', params.title);
+  if (params.documentType) form.append('documentType', params.documentType);
+
+  const res = await fetch(`${BASE}/review-cases/upload-notes`, { method: 'POST', body: form });
+  if (!res.ok) throw new Error(`Reviewer notes upload failed: ${res.status}`);
+  return res.json();
+}
+
 export async function listReviewCases(): Promise<ReviewCase[]> {
   const res = await fetch(`${BASE}/review-cases`);
   if (!res.ok) throw new Error(`Review cases list failed: ${res.status}`);

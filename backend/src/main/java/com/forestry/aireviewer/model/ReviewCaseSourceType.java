@@ -4,5 +4,6 @@ public enum ReviewCaseSourceType {
     TEXT_DIFF,
     REVIEW_COMMENT,
     BOTH,
-    TRACKED_REVISION
+    TRACKED_REVISION,
+    REVIEWER_NOTES
 }

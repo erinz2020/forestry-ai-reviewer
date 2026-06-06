@@ -332,6 +332,7 @@ header h1 {
 .source-review_comment { background: #f1f8e9; color: #33691e; }
 .source-both { background: #fff3e0; color: #e65100; }
 .source-tracked_revision { background: #ede7f6; color: #4527a0; }
+.source-reviewer_notes { background: #fff8e1; color: #ff6f00; }
 
 .expanded-row td {
   max-width: none;

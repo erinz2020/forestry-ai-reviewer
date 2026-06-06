@@ -45,6 +45,19 @@ public class ReviewCaseController {
         }
     }
 
+    @PostMapping("/upload-notes")
+    public ResponseEntity<List<ReviewCase>> uploadNotes(@RequestParam("notesFile") MultipartFile notesFile,
+                                                        @RequestParam(value = "relatedFileName", required = false) String relatedFileName,
+                                                        @RequestParam(value = "title", required = false) String title,
+                                                        @RequestParam(value = "documentType", required = false) String documentType) {
+        try {
+            return ResponseEntity.ok(historicalReviewPairService.ingestReviewerNotes(
+                    notesFile, relatedFileName, title, documentType));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<ReviewCase>> listAll() {
         return ResponseEntity.ok(historicalReviewPairService.listAll());

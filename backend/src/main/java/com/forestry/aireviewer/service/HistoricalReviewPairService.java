@@ -28,16 +28,19 @@ public class HistoricalReviewPairService {
     private final DocumentChunker chunker;
     private final CommentExtractionDispatcher commentExtractor;
     private final DocxRevisionExtractor revisionExtractor;
+    private final ReviewerNotesExtractor reviewerNotesExtractor;
     private final Tika tika = new Tika();
 
     public HistoricalReviewPairService(ReviewCaseRepository reviewCaseRepository,
                                        DocumentChunker chunker,
                                        CommentExtractionDispatcher commentExtractor,
-                                       DocxRevisionExtractor revisionExtractor) {
+                                       DocxRevisionExtractor revisionExtractor,
+                                       ReviewerNotesExtractor reviewerNotesExtractor) {
         this.reviewCaseRepository = reviewCaseRepository;
         this.chunker = chunker;
         this.commentExtractor = commentExtractor;
         this.revisionExtractor = revisionExtractor;
+        this.reviewerNotesExtractor = reviewerNotesExtractor;
     }
 
     public List<ReviewCase> ingestPair(MultipartFile beforeFile,
@@ -165,6 +168,39 @@ public class HistoricalReviewPairService {
             case INSERT -> "Insert: '" + truncate(edit.insertedText(), 120) + "'";
             case DELETE -> "Delete: '" + truncate(edit.originalText(), 120) + "'";
         };
+    }
+
+    public List<ReviewCase> ingestReviewerNotes(MultipartFile notesFile,
+                                                String relatedFileName,
+                                                String title,
+                                                String documentType) {
+        validateFile(notesFile, "notesFile");
+
+        if (alreadyIngested(notesFile)) {
+            log.info("Skipping notes upload: file '{}' already ingested",
+                    notesFile.getOriginalFilename());
+            return List.of();
+        }
+
+        List<NoteItem> items = reviewerNotesExtractor.extract(notesFile);
+        List<ReviewCase> cases = new ArrayList<>();
+        for (NoteItem item : items) {
+            ReviewCase reviewCase = new ReviewCase();
+            reviewCase.setTitle(blankToNull(title));
+            reviewCase.setDocumentType(blankToNull(documentType));
+            // sourceDraftFileName is reused as "the original document these notes are about".
+            reviewCase.setSourceDraftFileName(blankToNull(relatedFileName));
+            reviewCase.setSourceReviewedFileName(safeName(notesFile));
+            reviewCase.setSourceType(ReviewCaseSourceType.REVIEWER_NOTES);
+            reviewCase.setReviewerComment(truncate(item.text(), PREVIEW_LIMIT));
+            reviewCase.setCommentLocation(
+                    item.sectionReference() == null ? "document-level" : item.sectionReference());
+            cases.add(reviewCase);
+        }
+
+        List<ReviewCase> saved = reviewCaseRepository.saveAll(cases);
+        log.info("Created {} reviewer-notes review cases from '{}'", saved.size(), notesFile.getOriginalFilename());
+        return saved;
     }
 
     public List<ReviewCase> listAll() {

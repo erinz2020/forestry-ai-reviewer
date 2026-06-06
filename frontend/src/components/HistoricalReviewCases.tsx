@@ -1,9 +1,14 @@
 import { Fragment, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ReviewCase } from '../types';
-import { listReviewCases, uploadReviewCaseAnnotated, uploadReviewCasePair } from '../api';
+import {
+  listReviewCases,
+  uploadReviewCaseAnnotated,
+  uploadReviewCasePair,
+  uploadReviewerNotes,
+} from '../api';
 
-type UploadMode = 'pair' | 'annotated';
+type UploadMode = 'pair' | 'annotated' | 'notes';
 
 function preview(value: string | null, limit = 120) {
   if (!value) return '—';
@@ -16,6 +21,7 @@ function sourceTypeLabel(sourceType: ReviewCase['sourceType']) {
     REVIEW_COMMENT: 'Review comment',
     BOTH: 'Both',
     TRACKED_REVISION: 'Tracked revision',
+    REVIEWER_NOTES: 'Reviewer notes',
   };
   return labels[sourceType];
 }
@@ -26,6 +32,8 @@ export default function HistoricalReviewCases() {
   const [beforeFile, setBeforeFile] = useState<File | null>(null);
   const [afterFile, setAfterFile] = useState<File | null>(null);
   const [annotatedFile, setAnnotatedFile] = useState<File | null>(null);
+  const [notesFile, setNotesFile] = useState<File | null>(null);
+  const [relatedFileName, setRelatedFileName] = useState('');
   const [title, setTitle] = useState('');
   const [documentType, setDocumentType] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,6 +51,8 @@ export default function HistoricalReviewCases() {
     setBeforeFile(null);
     setAfterFile(null);
     setAnnotatedFile(null);
+    setNotesFile(null);
+    setRelatedFileName('');
     setTitle('');
     setDocumentType('');
   }
@@ -67,21 +77,35 @@ export default function HistoricalReviewCases() {
       setError('Select the annotated document to upload.');
       return;
     }
+    if (mode === 'notes' && !notesFile) {
+      setError('Select the reviewer notes document to upload.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const created = mode === 'pair'
-        ? await uploadReviewCasePair({
-            beforeFile: beforeFile!,
-            afterFile: afterFile!,
-            title: title.trim() || undefined,
-            documentType: documentType.trim() || undefined,
-          })
-        : await uploadReviewCaseAnnotated({
-            annotatedFile: annotatedFile!,
-            title: title.trim() || undefined,
-            documentType: documentType.trim() || undefined,
-          });
+      let created;
+      if (mode === 'pair') {
+        created = await uploadReviewCasePair({
+          beforeFile: beforeFile!,
+          afterFile: afterFile!,
+          title: title.trim() || undefined,
+          documentType: documentType.trim() || undefined,
+        });
+      } else if (mode === 'annotated') {
+        created = await uploadReviewCaseAnnotated({
+          annotatedFile: annotatedFile!,
+          title: title.trim() || undefined,
+          documentType: documentType.trim() || undefined,
+        });
+      } else {
+        created = await uploadReviewerNotes({
+          notesFile: notesFile!,
+          relatedFileName: relatedFileName.trim() || undefined,
+          title: title.trim() || undefined,
+          documentType: documentType.trim() || undefined,
+        });
+      }
 
       setSuccess(`Created ${created.length} review case${created.length === 1 ? '' : 's'}.`);
       resetForm();
@@ -124,6 +148,15 @@ export default function HistoricalReviewCases() {
         >
           Upload single annotated document
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === 'notes'}
+          className={mode === 'notes' ? 'tab tab-active' : 'tab'}
+          onClick={() => switchMode('notes')}
+        >
+          Upload reviewer notes document
+        </button>
       </div>
 
       <form className="pair-upload" onSubmit={handleSubmit}>
@@ -145,7 +178,7 @@ export default function HistoricalReviewCases() {
                 />
               </label>
             </>
-          ) : (
+          ) : mode === 'annotated' ? (
             <label>
               <span>Annotated document (.docx with comments, or .pdf with annotations)</span>
               <input
@@ -154,6 +187,26 @@ export default function HistoricalReviewCases() {
                 onChange={(e) => setAnnotatedFile(e.target.files?.[0] ?? null)}
               />
             </label>
+          ) : (
+            <>
+              <label>
+                <span>Reviewer notes document (free-form opinions, .docx / .pdf / .txt)</span>
+                <input
+                  type="file"
+                  accept=".docx,.pdf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+                  onChange={(e) => setNotesFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <label>
+                <span>Related document filename (optional)</span>
+                <input
+                  type="text"
+                  value={relatedFileName}
+                  onChange={(e) => setRelatedFileName(e.target.value)}
+                  placeholder="e.g. 提交版.docx"
+                />
+              </label>
+            </>
           )}
           <label>
             <span>Title</span>
@@ -179,7 +232,9 @@ export default function HistoricalReviewCases() {
             ? 'Extracting...'
             : mode === 'pair'
               ? 'Upload Pair'
-              : 'Upload Annotated Document'}
+              : mode === 'annotated'
+                ? 'Upload Annotated Document'
+                : 'Upload Reviewer Notes'}
         </button>
         {error && <p className="error">{error}</p>}
         {success && <p className="success">{success}</p>}

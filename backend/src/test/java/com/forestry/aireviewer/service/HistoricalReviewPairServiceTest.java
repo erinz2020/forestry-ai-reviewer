@@ -33,14 +33,19 @@ class HistoricalReviewPairServiceTest {
     @Mock
     private DocxRevisionExtractor revisionExtractor;
 
+    @Mock
+    private ReviewerNotesExtractor reviewerNotesExtractor;
+
     private HistoricalReviewPairService service;
 
     @BeforeEach
     void setUp() {
         service = new HistoricalReviewPairService(
-                reviewCaseRepository, new DocumentChunker(), commentExtractor, revisionExtractor);
+                reviewCaseRepository, new DocumentChunker(), commentExtractor,
+                revisionExtractor, reviewerNotesExtractor);
         lenient().when(reviewCaseRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(revisionExtractor.extract(any())).thenReturn(List.of());
+        lenient().when(reviewerNotesExtractor.extract(any())).thenReturn(List.of());
     }
 
     @Test
@@ -246,6 +251,51 @@ class HistoricalReviewPairServiceTest {
         assertThat(cases).isEmpty();
         verify(reviewCaseRepository, never()).saveAll(any());
         verify(commentExtractor, never()).extract(any());
+    }
+
+    @Test
+    @DisplayName("ingestReviewerNotes stores each item as REVIEWER_NOTES case")
+    void ingestReviewerNotes_parsedItems_storedAsNotesCases() {
+        MockMultipartFile notes = textFile("notes.docx", "ignored — extractor is mocked");
+        when(reviewerNotesExtractor.extract(notes)).thenReturn(List.of(
+                new NoteItem("一、关于第 5.2 节：补充调查时段。", "第 5.2 节"),
+                new NoteItem("二、其它：校对错别字。", null)));
+
+        List<ReviewCase> cases = service.ingestReviewerNotes(notes, "提交版.docx", "Forest plan", "Notes");
+
+        assertThat(cases).hasSize(2);
+        assertThat(cases).allMatch(c -> c.getSourceType() == ReviewCaseSourceType.REVIEWER_NOTES);
+        assertThat(cases).allMatch(c -> "提交版.docx".equals(c.getSourceDraftFileName()));
+        assertThat(cases).allMatch(c -> "notes.docx".equals(c.getSourceReviewedFileName()));
+
+        ReviewCase anchored = cases.get(0);
+        assertThat(anchored.getReviewerComment()).contains("调查时段");
+        assertThat(anchored.getCommentLocation()).isEqualTo("第 5.2 节");
+
+        ReviewCase floating = cases.get(1);
+        assertThat(floating.getCommentLocation()).isEqualTo("document-level");
+    }
+
+    @Test
+    @DisplayName("ingestReviewerNotes skips when file already ingested")
+    void ingestReviewerNotes_duplicateFile_skipped() {
+        MockMultipartFile notes = textFile("notes.docx", "x");
+        when(reviewCaseRepository.existsBySourceReviewedFileName("notes.docx")).thenReturn(true);
+
+        List<ReviewCase> cases = service.ingestReviewerNotes(notes, null, null, null);
+
+        assertThat(cases).isEmpty();
+        verify(reviewerNotesExtractor, never()).extract(any());
+        verify(reviewCaseRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("ingestReviewerNotes rejects missing file")
+    void ingestReviewerNotes_missingFile_rejectsRequest() {
+        assertThatThrownBy(() -> service.ingestReviewerNotes(null, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("notesFile is required");
+        verify(reviewCaseRepository, never()).saveAll(any());
     }
 
     @Test
