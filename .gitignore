@@ -16,5 +16,8 @@ uploads/
 # H2 data
 backend/data/
 
+# Source documents for review (large, often confidential)
+originalDocs/
+
 # Environment
 .env

@@ -1,6 +1,7 @@
 package com.forestry.aireviewer.controller;
 
 import com.forestry.aireviewer.service.HistoricalReviewPairService;
+import com.forestry.aireviewer.service.ReviewCaseBackfillService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,9 @@ class ReviewCaseControllerTest {
 
     @MockBean
     private HistoricalReviewPairService historicalReviewPairService;
+
+    @MockBean
+    private ReviewCaseBackfillService reviewCaseBackfillService;
 
     @Test
     @DisplayName("upload pair requires beforeFile")

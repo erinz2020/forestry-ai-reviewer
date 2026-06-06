@@ -32,6 +32,9 @@ public class Document {
     @Column(nullable = false)
     private Instant uploadedAt = Instant.now();
 
+    @Column
+    private UUID documentTypeId;
+
     public Document() {}
 
     public UUID getId() { return id; }
@@ -54,4 +57,7 @@ public class Document {
 
     public Instant getUploadedAt() { return uploadedAt; }
     public void setUploadedAt(Instant uploadedAt) { this.uploadedAt = uploadedAt; }
+
+    public UUID getDocumentTypeId() { return documentTypeId; }
+    public void setDocumentTypeId(UUID documentTypeId) { this.documentTypeId = documentTypeId; }
 }

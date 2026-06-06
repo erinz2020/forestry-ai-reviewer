@@ -2,6 +2,7 @@ package com.forestry.aireviewer.controller;
 
 import com.forestry.aireviewer.model.ReviewCase;
 import com.forestry.aireviewer.service.HistoricalReviewPairService;
+import com.forestry.aireviewer.service.ReviewCaseBackfillService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -17,9 +18,12 @@ import java.util.UUID;
 public class ReviewCaseController {
 
     private final HistoricalReviewPairService historicalReviewPairService;
+    private final ReviewCaseBackfillService backfillService;
 
-    public ReviewCaseController(HistoricalReviewPairService historicalReviewPairService) {
+    public ReviewCaseController(HistoricalReviewPairService historicalReviewPairService,
+                                ReviewCaseBackfillService backfillService) {
         this.historicalReviewPairService = historicalReviewPairService;
+        this.backfillService = backfillService;
     }
 
     @PostMapping("/upload-pair")
@@ -66,6 +70,11 @@ public class ReviewCaseController {
     @GetMapping("/{id}")
     public ResponseEntity<ReviewCase> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(historicalReviewPairService.getById(id));
+    }
+
+    @PostMapping("/backfill-types")
+    public ResponseEntity<ReviewCaseBackfillService.BackfillResult> backfillTypes() {
+        return ResponseEntity.ok(backfillService.backfillUnassigned());
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

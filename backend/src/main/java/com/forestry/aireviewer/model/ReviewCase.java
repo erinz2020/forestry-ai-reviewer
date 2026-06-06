@@ -59,6 +59,9 @@ public class ReviewCase {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column
+    private UUID documentTypeId;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -106,4 +109,7 @@ public class ReviewCase {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public UUID getDocumentTypeId() { return documentTypeId; }
+    public void setDocumentTypeId(UUID documentTypeId) { this.documentTypeId = documentTypeId; }
 }
