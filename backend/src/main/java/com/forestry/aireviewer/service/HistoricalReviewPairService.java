@@ -47,6 +47,12 @@ public class HistoricalReviewPairService {
         validateFile(beforeFile, "beforeFile");
         validateFile(afterFile, "afterFile");
 
+        if (alreadyIngested(afterFile)) {
+            log.info("Skipping pair upload: reviewed file '{}' already ingested",
+                    afterFile.getOriginalFilename());
+            return List.of();
+        }
+
         String beforeText = extractText(beforeFile);
         String afterText = extractText(afterFile);
         List<DocumentChunker.ChunkData> beforeChunks = chunker.chunk(beforeText);
@@ -91,6 +97,12 @@ public class HistoricalReviewPairService {
                                             String title,
                                             String documentType) {
         validateFile(annotatedFile, "annotatedFile");
+
+        if (alreadyIngested(annotatedFile)) {
+            log.info("Skipping annotated upload: file '{}' already ingested",
+                    annotatedFile.getOriginalFilename());
+            return List.of();
+        }
 
         String text = extractText(annotatedFile);
         List<DocumentChunker.ChunkData> chunks = chunker.chunk(text);
@@ -162,6 +174,13 @@ public class HistoricalReviewPairService {
     public ReviewCase getById(UUID id) {
         return reviewCaseRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("ReviewCase not found: " + id));
+    }
+
+    private boolean alreadyIngested(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        return name != null
+                && !name.isBlank()
+                && reviewCaseRepository.existsBySourceReviewedFileName(name);
     }
 
     private void validateFile(MultipartFile file, String fieldName) {

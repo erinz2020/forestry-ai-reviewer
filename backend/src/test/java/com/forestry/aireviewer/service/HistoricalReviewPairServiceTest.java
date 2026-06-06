@@ -221,6 +221,34 @@ class HistoricalReviewPairServiceTest {
     }
 
     @Test
+    @DisplayName("ingestAnnotated skips when reviewed file name already ingested")
+    void ingestAnnotated_duplicateFileName_skippedSilently() {
+        MockMultipartFile annotated = textFile("reviewed.docx", "body");
+        when(reviewCaseRepository.existsBySourceReviewedFileName("reviewed.docx")).thenReturn(true);
+
+        List<ReviewCase> cases = service.ingestAnnotated(annotated, null, null);
+
+        assertThat(cases).isEmpty();
+        verify(reviewCaseRepository, never()).saveAll(any());
+        verify(commentExtractor, never()).extract(any());
+        verify(revisionExtractor, never()).extract(any());
+    }
+
+    @Test
+    @DisplayName("ingestPair skips when reviewed file name already ingested")
+    void ingestPair_duplicateReviewedFileName_skippedSilently() {
+        MockMultipartFile before = textFile("draft.txt", "old");
+        MockMultipartFile after = textFile("reviewed.txt", "new");
+        when(reviewCaseRepository.existsBySourceReviewedFileName("reviewed.txt")).thenReturn(true);
+
+        List<ReviewCase> cases = service.ingestPair(before, after, null, null);
+
+        assertThat(cases).isEmpty();
+        verify(reviewCaseRepository, never()).saveAll(any());
+        verify(commentExtractor, never()).extract(any());
+    }
+
+    @Test
     @DisplayName("ingestAnnotated rejects missing file")
     void ingestAnnotated_missingFile_rejectsRequest() {
         assertThatThrownBy(() -> service.ingestAnnotated(null, null, null))

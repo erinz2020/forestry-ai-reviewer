@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface ReviewCaseRepository extends JpaRepository<ReviewCase, UUID> {
     List<ReviewCase> findAllByOrderByCreatedAtDesc();
+
+    boolean existsBySourceReviewedFileName(String sourceReviewedFileName);
 }
