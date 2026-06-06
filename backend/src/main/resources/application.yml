@@ -6,43 +6,24 @@ server:
 
 spring:
   datasource:
-    # H2 in file mode for local dev. Data persists across backend restarts.
-    # File location: backend/data/forestry-reviewer.mv.db (gitignored).
-    # To wipe local data: `rm -rf backend/data` and restart.
-    # Tests use an in-memory H2 instance (see src/test/resources/application.yml).
-    # PostgreSQL config is below, commented out — switch when ready.
-    url: jdbc:h2:file:./data/forestry-reviewer
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:postgresql://localhost:5432/forestry_ai_reviewer
+    driver-class-name: org.postgresql.Driver
+    username: forestry
+    password: forestry
   jpa:
     hibernate:
-      ddl-auto: update
+      # Flyway owns the schema. ddl-auto=validate makes Hibernate cross-check
+      # the entity model against the live schema at boot and fail fast on drift.
+      ddl-auto: validate
     open-in-view: false
   flyway:
-    enabled: false  # Enable when using PostgreSQL
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
-
-# --- PostgreSQL config (uncomment when ready) ---
-# spring:
-#   datasource:
-#     url: jdbc:postgresql://localhost:5432/forestry_ai_reviewer
-#     username: forestry
-#     password: forestry
-#     driver-class-name: org.postgresql.Driver
-#   jpa:
-#     hibernate:
-#       ddl-auto: validate
-#   flyway:
-#     enabled: true
-#     locations: classpath:db/migration
 
 upload:
   dir: ./uploads
