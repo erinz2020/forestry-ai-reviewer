@@ -28,7 +28,7 @@ class HistoricalReviewPairServiceTest {
     private ReviewCaseRepository reviewCaseRepository;
 
     @Mock
-    private DocxCommentExtractor commentExtractor;
+    private CommentExtractionDispatcher commentExtractor;
 
     private HistoricalReviewPairService service;
 
@@ -75,7 +75,7 @@ class HistoricalReviewPairServiceTest {
         MockMultipartFile before = textFile("draft.txt", "The access road crosses a wetland.");
         MockMultipartFile after = docxNamedTextFile("reviewed.docx", "The access road crosses a wetland.");
         when(commentExtractor.extract(after)).thenReturn(List.of(
-                new DocxCommentExtractor.ExtractedComment(
+                new ExtractedComment(
                         "Please cite the wetland survey.",
                         "Reviewer A",
                         "The access road crosses a wetland.",
@@ -98,7 +98,7 @@ class HistoricalReviewPairServiceTest {
         MockMultipartFile before = textFile("draft.txt", "The buffer is 10 meters.");
         MockMultipartFile after = docxNamedTextFile("reviewed.docx", "The buffer is 30 meters near fish habitat.");
         when(commentExtractor.extract(after)).thenReturn(List.of(
-                new DocxCommentExtractor.ExtractedComment(
+                new ExtractedComment(
                         "Good, this now matches the habitat guidance.",
                         "Reviewer A",
                         "The buffer is 30 meters near fish habitat.",
@@ -132,6 +132,62 @@ class HistoricalReviewPairServiceTest {
         assertThatThrownBy(() -> service.ingestPair(null, after, null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("beforeFile is required");
+
+        verify(reviewCaseRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("ingestAnnotated stores all comments as REVIEW_COMMENT cases")
+    void ingestAnnotated_anchoredAndFloatingComments_storedAsReviewComments() {
+        MockMultipartFile annotated = textFile("reviewed.docx",
+                "Section 1\n\nThe access road crosses a wetland.\n\nSection 2\n\nMitigation plan is vague.");
+        when(commentExtractor.extract(annotated)).thenReturn(List.of(
+                new ExtractedComment("Cite the wetland survey.", "Reviewer A",
+                        "The access road crosses a wetland.", "Paragraph 2"),
+                new ExtractedComment("Be specific about species.", "Reviewer A",
+                        null, null)));
+
+        List<ReviewCase> cases = service.ingestAnnotated(annotated, "Wetland EIA", "EIA");
+
+        assertThat(cases).hasSize(2);
+        assertThat(cases).allMatch(c -> c.getSourceType() == ReviewCaseSourceType.REVIEW_COMMENT);
+
+        ReviewCase anchored = cases.stream()
+                .filter(c -> c.getReviewerComment().contains("wetland survey"))
+                .findFirst().orElseThrow();
+        assertThat(anchored.getReviewedChunkIndex()).isEqualTo(0);
+        assertThat(anchored.getCommentLocation()).isEqualTo("Paragraph 2");
+        assertThat(anchored.getSourceDraftFileName()).isNull();
+        assertThat(anchored.getSourceReviewedFileName()).isEqualTo("reviewed.docx");
+        assertThat(anchored.getReviewedText()).contains("wetland");
+        assertThat(anchored.getTitle()).isEqualTo("Wetland EIA");
+        assertThat(anchored.getDocumentType()).isEqualTo("EIA");
+
+        ReviewCase floating = cases.stream()
+                .filter(c -> c.getReviewerComment().contains("Be specific"))
+                .findFirst().orElseThrow();
+        assertThat(floating.getReviewedChunkIndex()).isNull();
+        assertThat(floating.getCommentLocation()).isEqualTo("document-level");
+        assertThat(floating.getReviewedText()).isNull();
+    }
+
+    @Test
+    @DisplayName("ingestAnnotated with no comments stores nothing")
+    void ingestAnnotated_noComments_returnsEmpty() {
+        MockMultipartFile annotated = textFile("reviewed.docx", "Body without comments.");
+        when(commentExtractor.extract(annotated)).thenReturn(List.of());
+
+        List<ReviewCase> cases = service.ingestAnnotated(annotated, null, null);
+
+        assertThat(cases).isEmpty();
+    }
+
+    @Test
+    @DisplayName("ingestAnnotated rejects missing file")
+    void ingestAnnotated_missingFile_rejectsRequest() {
+        assertThatThrownBy(() -> service.ingestAnnotated(null, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("annotatedFile is required");
 
         verify(reviewCaseRepository, never()).saveAll(any());
     }

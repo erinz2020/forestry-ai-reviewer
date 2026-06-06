@@ -13,19 +13,26 @@ import java.util.List;
 import java.util.Locale;
 
 @Component
-public class DocxCommentExtractor {
+public class DocxCommentExtractor implements CommentExtractor {
 
     private static final Logger log = LoggerFactory.getLogger(DocxCommentExtractor.class);
 
-    public record ExtractedComment(
-            String text,
-            String author,
-            String referencedText,
-            String approximateLocation
-    ) {}
+    @Override
+    public boolean supports(MultipartFile file) {
+        if (file == null) {
+            return false;
+        }
+        String name = file.getOriginalFilename();
+        if (name != null && name.toLowerCase(Locale.ROOT).endsWith(".docx")) {
+            return true;
+        }
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                .equalsIgnoreCase(file.getContentType());
+    }
 
+    @Override
     public List<ExtractedComment> extract(MultipartFile file) {
-        if (!isDocx(file)) {
+        if (!supports(file)) {
             return List.of();
         }
 
@@ -56,15 +63,6 @@ public class DocxCommentExtractor {
         }
     }
 
-    private boolean isDocx(MultipartFile file) {
-        String name = file.getOriginalFilename();
-        if (name != null && name.toLowerCase(Locale.ROOT).endsWith(".docx")) {
-            return true;
-        }
-        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                .equalsIgnoreCase(file.getContentType());
-    }
-
     private CommentAnchor findAnchor(XWPFDocument document, String commentId) {
         if (commentId == null || commentId.isBlank()) {
             return CommentAnchor.empty();
@@ -86,7 +84,7 @@ public class DocxCommentExtractor {
         if (value == null) {
             return null;
         }
-        String cleaned = value.replace('\u0000', ' ').trim();
+        String cleaned = value.replace('\0', ' ').trim();
         return cleaned.isBlank() ? null : cleaned;
     }
 

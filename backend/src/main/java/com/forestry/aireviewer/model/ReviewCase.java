@@ -38,7 +38,7 @@ public class ReviewCase {
     @Column(nullable = false)
     private ReviewCaseSourceType sourceType;
 
-    @Column(nullable = false)
+    @Column
     private String sourceDraftFileName;
 
     @Column(nullable = false)

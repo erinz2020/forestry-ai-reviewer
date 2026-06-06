@@ -34,6 +34,17 @@ public class ReviewCaseController {
         }
     }
 
+    @PostMapping("/upload-annotated")
+    public ResponseEntity<List<ReviewCase>> uploadAnnotated(@RequestParam("annotatedFile") MultipartFile annotatedFile,
+                                                            @RequestParam(value = "title", required = false) String title,
+                                                            @RequestParam(value = "documentType", required = false) String documentType) {
+        try {
+            return ResponseEntity.ok(historicalReviewPairService.ingestAnnotated(annotatedFile, title, documentType));
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
+    }
+
     @GetMapping
     public ResponseEntity<List<ReviewCase>> listAll() {
         return ResponseEntity.ok(historicalReviewPairService.listAll());

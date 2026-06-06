@@ -26,12 +26,12 @@ public class HistoricalReviewPairService {
 
     private final ReviewCaseRepository reviewCaseRepository;
     private final DocumentChunker chunker;
-    private final DocxCommentExtractor commentExtractor;
+    private final CommentExtractionDispatcher commentExtractor;
     private final Tika tika = new Tika();
 
     public HistoricalReviewPairService(ReviewCaseRepository reviewCaseRepository,
                                        DocumentChunker chunker,
-                                       DocxCommentExtractor commentExtractor) {
+                                       CommentExtractionDispatcher commentExtractor) {
         this.reviewCaseRepository = reviewCaseRepository;
         this.chunker = chunker;
         this.commentExtractor = commentExtractor;
@@ -60,10 +60,10 @@ public class HistoricalReviewPairService {
             cases.add(diffCase(before, after, beforeFile, afterFile, title, documentType));
         }
 
-        List<DocxCommentExtractor.ExtractedComment> comments = commentExtractor.extract(afterFile);
+        List<ExtractedComment> comments = commentExtractor.extract(afterFile);
         Set<Integer> matchedComments = new HashSet<>();
         for (int i = 0; i < comments.size(); i++) {
-            DocxCommentExtractor.ExtractedComment comment = comments.get(i);
+            ExtractedComment comment = comments.get(i);
             Optional<ReviewCase> match = findMatchingDiffCase(cases, comment);
             if (match.isPresent()) {
                 attachComment(match.get(), comment);
@@ -81,6 +81,39 @@ public class HistoricalReviewPairService {
         List<ReviewCase> saved = reviewCaseRepository.saveAll(cases);
         log.info("Created {} historical review cases from '{}' and '{}'",
                 saved.size(), beforeFile.getOriginalFilename(), afterFile.getOriginalFilename());
+        return saved;
+    }
+
+    public List<ReviewCase> ingestAnnotated(MultipartFile annotatedFile,
+                                            String title,
+                                            String documentType) {
+        validateFile(annotatedFile, "annotatedFile");
+
+        String text = extractText(annotatedFile);
+        List<DocumentChunker.ChunkData> chunks = chunker.chunk(text);
+        List<ExtractedComment> comments = commentExtractor.extract(annotatedFile);
+
+        List<ReviewCase> cases = new ArrayList<>();
+        for (ExtractedComment comment : comments) {
+            ReviewCase reviewCase = new ReviewCase();
+            reviewCase.setTitle(blankToNull(title));
+            reviewCase.setDocumentType(blankToNull(documentType));
+            reviewCase.setSourceDraftFileName(null);
+            reviewCase.setSourceReviewedFileName(safeName(annotatedFile));
+            reviewCase.setSourceType(ReviewCaseSourceType.REVIEW_COMMENT);
+            reviewCase.setReviewerComment(comment.text());
+            reviewCase.setCommentAuthor(comment.author());
+            reviewCase.setCommentLocation(
+                    comment.approximateLocation() == null ? "document-level" : comment.approximateLocation());
+            if (comment.referencedText() != null) {
+                reviewCase.setReviewedText(truncate(comment.referencedText(), PREVIEW_LIMIT));
+            }
+            findChunkIndex(chunks, comment.referencedText()).ifPresent(reviewCase::setReviewedChunkIndex);
+            cases.add(reviewCase);
+        }
+
+        List<ReviewCase> saved = reviewCaseRepository.saveAll(cases);
+        log.info("Created {} annotated review cases from '{}'", saved.size(), annotatedFile.getOriginalFilename());
         return saved;
     }
 
@@ -124,7 +157,7 @@ public class HistoricalReviewPairService {
         return reviewCase;
     }
 
-    private ReviewCase commentCase(DocxCommentExtractor.ExtractedComment comment,
+    private ReviewCase commentCase(ExtractedComment comment,
                                    MultipartFile beforeFile,
                                    MultipartFile afterFile,
                                    String title,
@@ -153,7 +186,7 @@ public class HistoricalReviewPairService {
     }
 
     private Optional<ReviewCase> findMatchingDiffCase(List<ReviewCase> cases,
-                                                     DocxCommentExtractor.ExtractedComment comment) {
+                                                     ExtractedComment comment) {
         String referenced = normalize(comment.referencedText());
         if (referenced == null || referenced.length() < 12) {
             return Optional.empty();
@@ -165,7 +198,7 @@ public class HistoricalReviewPairService {
                 .findFirst();
     }
 
-    private void attachComment(ReviewCase reviewCase, DocxCommentExtractor.ExtractedComment comment) {
+    private void attachComment(ReviewCase reviewCase, ExtractedComment comment) {
         reviewCase.setSourceType(ReviewCaseSourceType.BOTH);
         reviewCase.setReviewerComment(comment.text());
         reviewCase.setCommentAuthor(comment.author());

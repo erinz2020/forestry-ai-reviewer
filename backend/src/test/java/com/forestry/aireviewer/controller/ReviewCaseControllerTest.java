@@ -59,4 +59,26 @@ class ReviewCaseControllerTest {
                         .param("documentType", "EIA"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @DisplayName("upload annotated requires annotatedFile")
+    void uploadAnnotated_missingFile_returnsBadRequest() throws Exception {
+        mockMvc.perform(multipart("/api/review-cases/upload-annotated"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("upload annotated passes multipart fields to service")
+    void uploadAnnotated_validRequest_returnsOk() throws Exception {
+        MockMultipartFile annotated = new MockMultipartFile("annotatedFile", "reviewed.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "body".getBytes());
+        when(historicalReviewPairService.ingestAnnotated(any(), eq("Wetland EIA"), eq("EIA")))
+                .thenReturn(List.of());
+
+        mockMvc.perform(multipart("/api/review-cases/upload-annotated")
+                        .file(annotated)
+                        .param("title", "Wetland EIA")
+                        .param("documentType", "EIA"))
+                .andExpect(status().isOk());
+    }
 }
