@@ -3,10 +3,10 @@
 > Single-source-of-truth snapshot for handoff to the next session.
 > Read this top-to-bottom + `git log` before resuming work.
 
-**Last updated:** 2026-06-06
+**Last updated:** 2026-06-06 evening
 **Branch:** main (in sync with origin)
-**Last committed:** `5b7443b` (bulk-import + annotated-docx export)
-**Local uncommitted:** V2 schema, document types feature, profile work in progress
+**Last committed:** `d007746` (document type taxonomy + filename classifier + profiles)
+**Local uncommitted:** DocumentAnnotationExporter polish (whole-paragraph highlight, plain-Chinese comment body)
 
 ---
 
@@ -362,7 +362,7 @@ PGPASSWORD=forestry psql -h localhost -U forestry -d forestry_ai_reviewer
    kill $(lsof -ti TCP:8081 -sTCP:LISTEN); sleep 2
    cd backend && mvn spring-boot:run > /tmp/forestry-backend.log 2>&1 &
    ```
-5. **POI's XWPF can't anchor a Word comment to a precise text range without XmlCursor surgery.** Current export attaches the comment to the *end* of the paragraph containing the quote. Reviewers see the comment in Word but not as a highlight over the quote. Good enough for v1; upgrade requires moving the `commentRangeStart` to before the first `<w:r>` via XmlCursor.
+5. **Word comment anchor — now uses XmlCursor for whole-paragraph highlight.** Previously commentRangeStart was at the paragraph tail (zero-width range → reviewers literally couldn't see annotations even though they were technically present). Current behavior: append start at end, then move it to right after `<w:pPr>` (or to position 0 if no pPr) using `XmlCursor.moveXml`. Word now visibly highlights the full anchor paragraph. Precise quote-substring highlight is still future work — requires splitting the run that contains the quote.
 6. **HWPF (legacy .doc) write is incomplete** — POI can read .doc but doesn't reliably write it back. Annotated export for .doc sources is therefore intentionally unsupported.
 
 ---

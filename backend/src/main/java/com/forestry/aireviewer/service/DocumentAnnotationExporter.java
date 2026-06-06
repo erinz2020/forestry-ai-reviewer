@@ -8,6 +8,7 @@ import org.apache.poi.xwpf.usermodel.XWPFComment;
 import org.apache.poi.xwpf.usermodel.XWPFComments;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.xmlbeans.XmlCursor;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTComment;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTMarkup;
 import org.openxmlformats.schemas.wordprocessingml.x2006.main.CTP;
@@ -142,17 +143,35 @@ public class DocumentAnnotationExporter {
     private void attachCommentMarker(XWPFParagraph paragraph, BigInteger id) {
         CTP ctp = paragraph.getCTP();
 
-        CTMarkup start = ctp.addNewCommentRangeStart();
-        start.setId(id);
-
+        // End + reference run at the paragraph tail
         CTMarkup end = ctp.addNewCommentRangeEnd();
         end.setId(id);
-
         CTR ref = ctp.addNewR();
         CTRPr rpr = ref.addNewRPr();
         CTString style = rpr.addNewRStyle();
         style.setVal(COMMENT_REFERENCE_STYLE);
         ref.addNewCommentReference().setId(id);
+
+        // Append a placeholder start, then move it to the beginning of the
+        // paragraph content (after <w:pPr> if present) so the comment range
+        // spans the whole paragraph and Word actually shows the highlight.
+        CTMarkup start = ctp.addNewCommentRangeStart();
+        start.setId(id);
+
+        try (XmlCursor cursor = start.newCursor();
+             XmlCursor target = ctp.newCursor()) {
+            if (target.toFirstChild()) {
+                String localName = target.getName() == null ? "" : target.getName().getLocalPart();
+                if ("pPr".equals(localName)) {
+                    // pPr must stay first; insert start right after it
+                    if (!target.toNextSibling()) {
+                        // No content runs at all — leave start at the end
+                        return;
+                    }
+                }
+                cursor.moveXml(target);
+            }
+        }
     }
 
     private BigInteger nextCommentId(XWPFComments comments) {
@@ -177,25 +196,11 @@ public class DocumentAnnotationExporter {
 
     private List<String> commentLines(Finding finding) {
         java.util.List<String> lines = new java.util.ArrayList<>();
-        String header = "【" + finding.getSeverity().name() + "】 "
-                + (finding.getType() == null ? "" : finding.getType().name() + " ")
-                + (finding.getLocation() == null ? "" : "[" + finding.getLocation() + "]");
-        lines.add(header.trim());
         if (finding.getDescription() != null && !finding.getDescription().isBlank()) {
-            lines.add("问题：" + finding.getDescription());
-        }
-        if (finding.getQuote() != null && !finding.getQuote().isBlank()) {
-            String quote = finding.getQuote().trim();
-            if (quote.length() > 200) {
-                quote = quote.substring(0, 200) + "...";
-            }
-            lines.add("原文：" + quote);
+            lines.add(finding.getDescription().trim());
         }
         if (finding.getSuggestion() != null && !finding.getSuggestion().isBlank()) {
-            lines.add("建议：" + finding.getSuggestion());
-        }
-        if (finding.getEvidence() != null && !finding.getEvidence().isBlank()) {
-            lines.add("依据：" + finding.getEvidence());
+            lines.add("建议：" + finding.getSuggestion().trim());
         }
         return lines;
     }

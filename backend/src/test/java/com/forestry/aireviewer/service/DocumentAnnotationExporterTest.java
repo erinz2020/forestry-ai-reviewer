@@ -42,8 +42,12 @@ class DocumentAnnotationExporterTest {
                 assertThat(comment.getAuthor()).isEqualTo("liujh");
                 String body = comment.getText();
                 assertThat(body).contains("面积矛盾");
-                assertThat(body).contains("HIGH");
                 assertThat(body).contains("土地总面积");
+                // Comment body is plain Chinese — no severity / type / location labels
+                assertThat(body).doesNotContain("HIGH");
+                assertThat(body).doesNotContain("INTERNAL_CONTRADICTION");
+                assertThat(body).doesNotContain("原文");
+                assertThat(body).doesNotContain("依据");
             }
         } finally {
             Files.deleteIfExists(docx);
