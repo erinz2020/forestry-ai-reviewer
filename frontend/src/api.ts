@@ -44,6 +44,25 @@ export async function updateFindingStatus(findingId: string, status: FindingStat
   return res.json();
 }
 
+export async function exportAnnotatedDocument(documentId: string, author: string): Promise<void> {
+  const url = `${BASE}/documents/${documentId}/export-annotated?author=${encodeURIComponent(author)}`;
+  const res = await fetch(url, { method: 'POST' });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const blob = await res.blob();
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="([^"]+)"/);
+  const fileName = match ? match[1] : `annotated-${documentId}.docx`;
+
+  const objectUrl = URL.createObjectURL(blob);
+  const a = window.document.createElement('a');
+  a.href = objectUrl;
+  a.download = fileName;
+  window.document.body.appendChild(a);
+  a.click();
+  window.document.body.removeChild(a);
+  URL.revokeObjectURL(objectUrl);
+}
+
 export async function uploadReviewCasePair(params: {
   beforeFile: File;
   afterFile: File;

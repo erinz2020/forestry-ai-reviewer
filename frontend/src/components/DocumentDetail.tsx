@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Document as DocType, Finding, FindingStatus } from '../types';
-import { getDocument, reviewDocument, getFindings } from '../api';
+import { getDocument, reviewDocument, getFindings, exportAnnotatedDocument } from '../api';
 import FindingRow from './FindingRow';
 
 interface Props {
@@ -17,6 +17,8 @@ export default function DocumentDetail({ documentId, onBack }: Props) {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [author, setAuthor] = useState('liujh');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     getDocument(documentId).then(setDoc).catch(() => setError('Failed to load document'));
@@ -38,6 +40,18 @@ export default function DocumentDetail({ documentId, onBack }: Props) {
 
   function handleStatusChange(updated: Finding) {
     setFindings((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    setError(null);
+    try {
+      await exportAnnotatedDocument(documentId, author.trim() || 'liujh');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (error) return <p className="error">{error}</p>;
@@ -77,6 +91,28 @@ export default function DocumentDetail({ documentId, onBack }: Props) {
             <span className="summary-item summary-confirmed">Confirmed: {confirmed}</span>
             <span className="summary-item summary-ignored">Ignored: {ignored}</span>
             <span className="summary-item summary-followup">Follow-up: {followUp}</span>
+          </div>
+
+          <div className="export-bar">
+            <label>
+              <span>Comment author</span>
+              <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="liujh"
+              />
+            </label>
+            <button
+              className="btn-review"
+              onClick={handleExport}
+              disabled={exporting || confirmed === 0}
+              title={confirmed === 0 ? 'No CONFIRMED findings yet' : ''}
+            >
+              {exporting
+                ? 'Exporting...'
+                : `Export annotated .docx (${confirmed} CONFIRMED)`}
+            </button>
           </div>
 
           <table className="findings-table">

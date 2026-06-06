@@ -1,10 +1,13 @@
 package com.forestry.aireviewer.service;
 
 import com.forestry.aireviewer.dto.AIReviewResponse;
+import com.forestry.aireviewer.dto.BulkImportFinding;
 import com.forestry.aireviewer.model.Document;
 import com.forestry.aireviewer.model.DocumentChunk;
 import com.forestry.aireviewer.model.Finding;
+import com.forestry.aireviewer.model.FindingSeverity;
 import com.forestry.aireviewer.model.FindingStatus;
+import com.forestry.aireviewer.model.FindingType;
 import com.forestry.aireviewer.repository.DocumentChunkRepository;
 import com.forestry.aireviewer.repository.FindingRepository;
 import org.slf4j.Logger;
@@ -98,6 +101,46 @@ public class ReviewOrchestrator {
 
     public List<Finding> getFindings(UUID documentId) {
         return findingRepository.findByDocumentIdOrderByCreatedAtDesc(documentId);
+    }
+
+    public List<Finding> bulkImport(UUID documentId, List<BulkImportFinding> requests) {
+        Document doc = documentService.getById(documentId);
+        List<Finding> findings = new ArrayList<>(requests.size());
+        for (BulkImportFinding r : requests) {
+            Finding f = new Finding();
+            f.setDocumentId(doc.getId());
+            f.setType(parseType(r.type()));
+            f.setSeverity(parseSeverity(r.severity()));
+            f.setLocation(r.location());
+            f.setQuote(r.quote());
+            f.setDescription(r.description());
+            f.setSuggestion(r.suggestion());
+            f.setEvidence(r.evidence());
+            f.setConfidence(r.confidence());
+            f.setSourceReferences(r.sourceReferences());
+            f.setChunkIndex(r.chunkIndex());
+            f.setStatus(FindingStatus.PENDING);
+            findings.add(f);
+        }
+        List<Finding> saved = findingRepository.saveAll(findings);
+        log.info("Bulk-imported {} findings for document '{}'", saved.size(), doc.getFileName());
+        return saved;
+    }
+
+    private static FindingType parseType(String value) {
+        try {
+            return FindingType.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown finding type: " + value, e);
+        }
+    }
+
+    private static FindingSeverity parseSeverity(String value) {
+        try {
+            return FindingSeverity.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown severity: " + value, e);
+        }
     }
 
     public Finding updateStatus(UUID findingId, FindingStatus status) {
